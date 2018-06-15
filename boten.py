@@ -46,7 +46,7 @@ def main():
     async def on_ready():
         print('Online, connected ^__^')
         print('Having username {}#{} (UID: {})'.format(anna.user.name, anna.user.discriminator, anna.user.id))
-        print('On servers: {}'.format(list(s.name for s in anna.servers)))
+        print('On servers: {}'.format(', '.join(list(s.name for s in anna.servers))))
 
     @anna.event
     async def on_server_join(server):
