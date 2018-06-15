@@ -44,8 +44,17 @@ def main():
 
     @anna.event
     async def on_ready():
-        print('On-line, connected ^__^')
+        print('Online, connected ^__^')
         print('Having username {}#{} (UID: {})'.format(anna.user.name, anna.user.discriminator, anna.user.id))
+        print('On servers: {}'.format(list(s.name for s in anna.servers)))
+
+    @anna.event
+    async def on_server_join(server):
+        print('Joined server {}'.format(server.name))
+
+    @anna.event
+    async def on_server_remove(server):
+        print('Vacated from server {}'.format(server.name))
 
     @anna.event
     async def on_message(message):
