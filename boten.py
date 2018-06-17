@@ -6,7 +6,7 @@ import os
 from bs4 import BeautifulSoup, NavigableString
 import requests
 import random
-
+import time
 
 def get_aliases():
     soup = BeautifulSoup(requests.get('https://en.wikipedia.org/wiki/Anna_(given_name)').text, 'html.parser')
@@ -64,6 +64,22 @@ def main():
             new_alias = pick_alias(aliases)
             await anna.change_nickname(message.server.me, new_alias[0])
             await anna.send_message(message.channel, 'Of {} origin.'.format('/'.join(new_alias[1])))
+        elif message.content.startswith('%wheremii'):
+            fh = open('locations_mii.txt', 'r')
+            lines = fh.readlines()
+            fh.close()
+            last_line_content = lines[-1].split(',')
+            timedelta = int(time.time())-int(last_line_content[0])
+            time_str = '{} seconds'.format(timedelta)
+            if timedelta >= 60:
+                minutes, seconds = divmod(timedelta, 60)
+                time_str = '{} minutes {} seconds'.format(minutes, seconds)
+                if minutes >= 60:
+                    hours, minutes = divmod(minutes, 60)
+                    time_str = '{} hours {} minutes {} seconds'.format(hours, minutes, seconds)
+            await anna.send_message(message.channel, '{},{} ({} ago)'.format(last_line_content[4][0:8],
+                                                                             last_line_content[5][0:8],
+                                                                             time_str))
 
     anna.run(os.environ['DISCORD_APP_BOT_USER_TOKEN'])
 
