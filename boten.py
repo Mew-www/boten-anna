@@ -8,6 +8,7 @@ import requests
 import random
 import time
 
+
 def get_aliases():
     soup = BeautifulSoup(requests.get('https://en.wikipedia.org/wiki/Anna_(given_name)').text, 'html.parser')
     content = soup.find('div', {'class': "mw-parser-output"})
@@ -67,7 +68,11 @@ async def handle_wuv(anna, message):
     if author.voice.voice_channel is None:
         return None
     voice = await anna.join_voice_channel(author.voice.voice_channel)
-    player = voice.create_ffmpeg_player('../smile.mp3', use_avconv=True, after=lambda: voice.disconnect())
+
+    async def disconnect():
+        await voice.disconnect()
+
+    player = voice.create_ffmpeg_player('../smile.mp3', use_avconv=True, after=disconnect)
     player.start()
 
 
@@ -106,6 +111,10 @@ def main():
             await handle_wheremii(anna, message)
         elif message.content.startswith('%wuv'):
             await handle_wuv(anna, message)
+        elif message.content.startswith('%tts'):
+            authors_voice_channel = message.author.voice.voice_channel
+            if authors_voice_channel is not None:
+                await anna.send_message(authors_voice_channel, ' '.join(message.content.split(' ')[1:]), tts=True)
 
     anna.run(os.environ['DISCORD_APP_BOT_USER_TOKEN'])
 
