@@ -10,6 +10,7 @@ import time
 import asyncio
 from espeakng import ESpeakNG
 from io import BytesIO
+import wave
 
 
 def get_aliases():
@@ -116,8 +117,13 @@ async def handle_talking(anna, message, state):
                 espeak.voice = new_voice_str
         elif followup_message.content.startswith('%say'):
             words = followup_message.content.split(' ')[1:]
+            # Create the PCM, get its options via "wave" module, set encoder options to equal
             wav_bytes = espeak.synth_wav(' '.join(words))
-            player = voice.create_stream_player(BytesIO(wav_bytes))
+            wav_file = BytesIO(wav_bytes)
+            wav = wave.open(wav_file)
+            voice.encoder_options(wav.getframerate(), channels=wav.getnchannels())
+            # Speak
+            player = voice.create_stream_player(wav_file)
             player.start()
 
 
