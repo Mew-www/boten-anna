@@ -83,10 +83,10 @@ async def handle_wuv(anna, message):
 async def handle_talking(anna, message, state):
     author = message.author
     # Check author name
-    if not author.name == os.environ['DISCORD_APP_ADMIN_NAME']:
-        return None
-    # Check author #<discriminator>
-    if not str(author.discriminator) == os.environ['DISCORD_APP_ADMIN_DISCRIM']:
+    if (
+                not (author.name == os.environ['DISCORD_APP_ADMIN_NAME'] and str(author.discriminator) == os.environ['DISCORD_APP_ADMIN_DISCRIM'])
+            and not (author.name == os.environ['DISCORD_APP_SO_NAME'] and str(author.discriminator) == os.environ['DISCORD_APP_SO_DISCRIM'])
+    ):
         return None
     # Check author is on an existing voice channel
     if author.voice.voice_channel is None:
