@@ -11,7 +11,7 @@ import asyncio
 from espeakng import ESpeakNG
 from io import BytesIO
 import wave
-import samplerate
+import audioop
 
 
 def get_aliases():
@@ -121,12 +121,10 @@ async def handle_talking(anna, message, state):
             # Create the PCM, get its options via "wave" module, upsample it to 48'000
             wav_bytes = espeak.synth_wav(' '.join(words))
             wav = wave.open(BytesIO(wav_bytes))
-            original_framerate = wav.getframerate()
-            ratio = original_framerate / 48000
-            resampled_bytes = samplerate.resample(wav_bytes, ratio, 'sinc_best')
+            resampled, state = audioop.ratecv(wav_bytes, 2, wav.getnchannels(), wav.getframerate(), 48000, None)
             voice.encoder_options(sample_rate=48000, channels=wav.getnchannels())
             # Speak
-            player = voice.create_stream_player(BytesIO(resampled_bytes))
+            player = voice.create_stream_player(BytesIO(resampled))
             player.start()
 
 
