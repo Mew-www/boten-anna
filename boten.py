@@ -121,9 +121,9 @@ async def handle_talking(anna, message, state):
             # Create the PCM, get its options via "wave" module, upsample it to 48'000 to accommodate Discord v-channels
             synthesized_wav_bytes = espeak.synth_wav(' '.join(words))
             with wave.open(BytesIO(synthesized_wav_bytes)) as wh:
-                resampled, state = audioop.ratecv(synthesized_wav_bytes, wh.getsampwidth(), wh.getnchannels(),
-                                                  wh.getframerate(), 48000,
-                                                  None)
+                resampled, cvstate = audioop.ratecv(synthesized_wav_bytes, wh.getsampwidth(), wh.getnchannels(),
+                                                    wh.getframerate(), 48000,
+                                                    None)
                 voice.encoder_options(sample_rate=48000, channels=wh.getnchannels())
             # Speak
             player = voice.create_stream_player(BytesIO(resampled))
