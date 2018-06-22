@@ -116,7 +116,7 @@ async def handle_talking(anna, message, state):
         elif followup_message.content.startswith('%say'):
             words = followup_message.content.split(' ')[1:]
             wav_bytes = espeak.synth_wav(' '.join(words))
-            voice.play_audio(wav_bytes)
+            voice.play_audio(wav_bytes, encode=False)
 
 
 def main():
