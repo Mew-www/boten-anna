@@ -115,13 +115,43 @@ async def handle_talking(anna, message, state):
             new_voice_str = followup_message.content.split(' ')[1]
             if len(new_voice_str) > 0:
                 espeak.voice = new_voice_str
-        elif followup_message.content.startswith('%say'):
+        elif followup_message.content.startswith('%say '):
             words = followup_message.content.split(' ')[1:]
             # Create the PCM, get its options via "wave" module, set encoder options to equal
             wav_bytes = espeak.synth_wav(' '.join(words))
             wav_file = BytesIO(wav_bytes)
             wav = wave.open(wav_file)
             voice.encoder_options(sample_rate=wav.getframerate(), channels=wav.getnchannels())
+            # Speak
+            player = voice.create_stream_player(wav_file)
+            player.start()
+        elif followup_message.content.startswith('%say16'):
+            words = followup_message.content.split(' ')[1:]
+            # Create the PCM, get its options via "wave" module, set encoder options to equal
+            wav_bytes = espeak.synth_wav(' '.join(words))
+            wav_file = BytesIO(wav_bytes)
+            wav = wave.open(wav_file)
+            voice.encoder_options(sample_rate=16000, channels=wav.getnchannels())
+            # Speak
+            player = voice.create_stream_player(wav_file)
+            player.start()
+        elif followup_message.content.startswith('%say24'):
+            words = followup_message.content.split(' ')[1:]
+            # Create the PCM, get its options via "wave" module, set encoder options to equal
+            wav_bytes = espeak.synth_wav(' '.join(words))
+            wav_file = BytesIO(wav_bytes)
+            wav = wave.open(wav_file)
+            voice.encoder_options(sample_rate=24000, channels=wav.getnchannels())
+            # Speak
+            player = voice.create_stream_player(wav_file)
+            player.start()
+        elif followup_message.content.startswith('%say48'):
+            words = followup_message.content.split(' ')[1:]
+            # Create the PCM, get its options via "wave" module, set encoder options to equal
+            wav_bytes = espeak.synth_wav(' '.join(words))
+            wav_file = BytesIO(wav_bytes)
+            wav = wave.open(wav_file)
+            voice.encoder_options(sample_rate=48000, channels=wav.getnchannels())
             # Speak
             player = voice.create_stream_player(wav_file)
             player.start()
