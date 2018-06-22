@@ -121,7 +121,7 @@ async def handle_talking(anna, message, state):
             wav_bytes = espeak.synth_wav(' '.join(words))
             wav_file = BytesIO(wav_bytes)
             wav = wave.open(wav_file)
-            voice.encoder_options(wav.getframerate(), channels=wav.getnchannels())
+            voice.encoder_options(sample_rate=wav.getframerate(), channels=wav.getnchannels())
             # Speak
             player = voice.create_stream_player(wav_file)
             player.start()
