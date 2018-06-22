@@ -66,7 +66,7 @@ async def handle_wuv(anna, message):
     # Check author is on an existing voice channel
     if author.voice.voice_channel is None:
         return None
-    voice = anna.join_voice_channel(author.voice.voice_channel)
+    voice = await anna.join_voice_channel(author.voice.voice_channel)
     player = voice.create_ffmpeg_player('../smile.mp3', use_avconv=True)
     player.start()
 
