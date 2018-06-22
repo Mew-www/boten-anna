@@ -31,6 +31,46 @@ def pick_alias(names_countries):
     return choice
 
 
+async def handle_changename(anna, message, aliases):
+    new_alias = pick_alias(aliases)
+    await anna.change_nickname(message.server.me, new_alias[0])
+    await anna.send_message(message.channel, 'Of {} origin.'.format('/'.join(new_alias[1])))
+
+
+async def handle_wheremii(anna, message):
+    fh = open('locations_mii.txt', 'r')
+    lines = fh.readlines()
+    fh.close()
+    last_line_content = lines[-1].split(',')
+    timedelta = int(time.time()) - int(last_line_content[0])
+    time_str = '{} seconds'.format(timedelta)
+    if timedelta >= 60:
+        minutes, seconds = divmod(timedelta, 60)
+        time_str = '{} minutes {} seconds'.format(minutes, seconds)
+        if minutes >= 60:
+            hours, minutes = divmod(minutes, 60)
+            time_str = '{} hours {} minutes {} seconds'.format(hours, minutes, seconds)
+    await anna.send_message(message.channel, '{},{} ({} ago)'.format(last_line_content[4][0:8],
+                                                                     last_line_content[5][0:8],
+                                                                     time_str))
+
+
+async def handle_wuv(anna, message):
+    author = message.author
+    # Check author name
+    if not author.name == os.environ['DISCORD_APP_ADMIN_NAME']:
+        return None
+    # Check author #<discriminator>
+    if not str(author.discriminator) == os.environ['DISCORD_APP_ADMIN_DISCRIM']:
+        return None
+    # Check author is on an existing voice channel
+    if author.voice.voice_channel is None:
+        return None
+    voice = anna.join_voice_channel(author.voice.voice_channel)
+    player = voice.create_ffmpeg_player('../smile.mp3', use_avconv=True)
+    player.start()
+
+
 def main():
     anna = discord.Client(max_messages=1000)
 
@@ -61,25 +101,11 @@ def main():
         if message.content.startswith('%hello'):
             await anna.send_message(message.channel, random.choice(greetings))
         elif message.content.startswith('%changename'):
-            new_alias = pick_alias(aliases)
-            await anna.change_nickname(message.server.me, new_alias[0])
-            await anna.send_message(message.channel, 'Of {} origin.'.format('/'.join(new_alias[1])))
+            await handle_changename(anna, message, aliases)
         elif message.content.startswith('%wheremii'):
-            fh = open('locations_mii.txt', 'r')
-            lines = fh.readlines()
-            fh.close()
-            last_line_content = lines[-1].split(',')
-            timedelta = int(time.time())-int(last_line_content[0])
-            time_str = '{} seconds'.format(timedelta)
-            if timedelta >= 60:
-                minutes, seconds = divmod(timedelta, 60)
-                time_str = '{} minutes {} seconds'.format(minutes, seconds)
-                if minutes >= 60:
-                    hours, minutes = divmod(minutes, 60)
-                    time_str = '{} hours {} minutes {} seconds'.format(hours, minutes, seconds)
-            await anna.send_message(message.channel, '{},{} ({} ago)'.format(last_line_content[4][0:8],
-                                                                             last_line_content[5][0:8],
-                                                                             time_str))
+            await handle_wheremii(anna, message)
+        elif message.content.startswith('%wuv'):
+            await handle_wuv(anna, message)
 
     anna.run(os.environ['DISCORD_APP_BOT_USER_TOKEN'])
 
