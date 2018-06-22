@@ -9,6 +9,7 @@ import random
 import time
 import asyncio
 from espeakng import ESpeakNG
+from io import BytesIO
 
 
 def get_aliases():
@@ -116,7 +117,8 @@ async def handle_talking(anna, message, state):
         elif followup_message.content.startswith('%say'):
             words = followup_message.content.split(' ')[1:]
             wav_bytes = espeak.synth_wav(' '.join(words))
-            voice.play_audio(wav_bytes, encode=False)
+            player = voice.create_stream_player(BytesIO(wav_bytes))
+            player.start()
 
 
 def main():
