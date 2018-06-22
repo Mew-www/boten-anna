@@ -69,10 +69,10 @@ async def handle_wuv(anna, message):
     if author.voice.voice_channel is None:
         return None
     voice = await anna.join_voice_channel(author.voice.voice_channel)
-    voice_event_loop = voice.loop
+    voice_loop = voice.loop
     player = voice.create_ffmpeg_player('../smile.mp3',
                                         use_avconv=True,
-                                        after=asyncio.run_coroutine_threadsafe(voice.disconnect(), voice_event_loop))
+                                        after=lambda: asyncio.run_coroutine_threadsafe(voice.disconnect(), voice_loop))
     player.start()
 
 
