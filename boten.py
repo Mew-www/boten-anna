@@ -8,6 +8,7 @@ import requests
 import random
 import time
 import asyncio
+from espeakng import ESpeakNG
 
 
 def get_aliases():
@@ -76,6 +77,48 @@ async def handle_wuv(anna, message):
     player.start()
 
 
+async def handle_talking(anna, message, state):
+    author = message.author
+    # Check author name
+    if not author.name == os.environ['DISCORD_APP_ADMIN_NAME']:
+        return None
+    # Check author #<discriminator>
+    if not str(author.discriminator) == os.environ['DISCORD_APP_ADMIN_DISCRIM']:
+        return None
+    # Check author is on an existing voice channel
+    if author.voice.voice_channel is None:
+        return None
+    # Check if is already talking
+    if state['is_talking']:
+        return None
+    state['is_talking'] = True
+    voice = await anna.join_voice_channel(author.voice.voice_channel)
+    espeak = ESpeakNG(speed=135)
+
+    def disconnect_voice():
+        asyncio.run_coroutine_threadsafe(voice.disconnect(), voice.loop)
+        state['is_talking'] = False
+
+    while True:
+        followup_message = await anna.wait_for_message(author=message.author)
+        if followup_message.content.startswith('%thanksenough'):
+            disconnect_voice()
+            break
+        elif followup_message.content.startswith('%speed'):
+            new_speed_str = followup_message.content.split(' ')[1]
+            if len(new_speed_str) > 0:
+                new_speed = int(new_speed_str)
+                espeak.speed = new_speed
+        elif followup_message.content.startswith('%voice'):
+            new_voice_str = followup_message.content.split(' ')[1]
+            if len(new_voice_str) > 0:
+                espeak.voice = new_voice_str
+        elif followup_message.content.startswith('%say'):
+            words = followup_message.content.split(' ')[1:]
+            wav_bytes = espeak.synth_wav(' '.join(words))
+            voice.play_audio(wav_bytes)
+
+
 def main():
     anna = discord.Client(max_messages=1000)
 
@@ -86,6 +129,9 @@ def main():
                  'Salut', 'Privét', 'Talofa', 'ćao', 'Nazdar', 'Zdravo', 'Hola', 'Jambo', 'Hej', 'Halo', 'Sàwàtdee kráp',
                  'Merhaba', 'Pryvít', 'Adaab arz hai', 'Chào']
     aliases = get_aliases()
+    state = {
+        'is_talking': False
+    }
 
     @anna.event
     async def on_ready():
@@ -110,7 +156,11 @@ def main():
         elif message.content.startswith('%wheremii'):
             await handle_wheremii(anna, message)
         elif message.content.startswith('%wuv'):
+            # Has restriction of mii-only
             await handle_wuv(anna, message)
+        elif message.content.startswith('%cometalk'):
+            # Has restriction of mii-only
+            await handle_talking(anna, message, state)
 
     anna.run(os.environ['DISCORD_APP_BOT_USER_TOKEN'])
 
