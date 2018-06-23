@@ -268,14 +268,14 @@ class VoiceInterface:
                                                   self._currently_activated_by
                                               ))
             else:
-                options = voice_request_message.split(' ')[1:]
+                options = voice_request_message.content.split(' ')[1:]
                 if len(options) == 0:
-                    await self._anna.send_message(voice_request_message, 'No options given. <voice> <speed>')
+                    await self._anna.send_message(voice_request_message.channel, 'No options given. <voice> <speed>')
                 else:
                     # At least 1 option
                     voice_name = options[0]
                     if voice_name not in list(self._voice_mapping.keys()):
-                        await self._anna.send_message(voice_request_message,
+                        await self._anna.send_message(voice_request_message.channel,
                                                       'Invalid voice name. Available: {}'.format(
                                                           ', '.join(list(self._voice_mapping.keys()))
                                                       ))
@@ -285,7 +285,8 @@ class VoiceInterface:
                 if len(options) > 1:
                     voice_speed = int(options[1])
                     if 30 > voice_speed > 180:
-                        await self._anna.send_message(voice_request_message, 'Invalid speed. Has to be between 30..180')
+                        await self._anna.send_message(voice_request_message.channel,
+                                                      'Invalid speed. Has to be between 30..180')
                     else:
                         self._espeak.speed = voice_speed
 
