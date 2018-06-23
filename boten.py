@@ -35,7 +35,7 @@ def get_aliases():
 
 
 def get_some_tweets(on_topic):
-    soup = BeautifulSoup(requests.get('https://twitter.com/'+on_topic).text, 'html.parser')
+    soup = BeautifulSoup(requests.get('https://twitter.com/search?q='+on_topic).text, 'html.parser')
     tweets = [re.sub(r'pic\.twitter\.com\S+', '',
                      re.sub(r'http\S+', '', p.text))
               for p in soup.findAll('p', class_='tweet-text')]
@@ -272,8 +272,15 @@ class VoiceInterface:
                 if len(keywords) == 0:
                     await self._anna.send_message(voice_request_message.channel, 'No keywords given.')
                 else:
-                    for tweet in get_some_tweets('+'.join(keywords)):
+                    query = '+'.join(keywords)
+                    tweets = get_some_tweets(query)
+                    for tweet in tweets:
                         self.add_to_queue(tweet)
+                    await self._anna.send_message(voice_request_message.channel,
+                                                  '{} tweets found via {}'.format(
+                                                      len(tweets),
+                                                      'twitter.com/search?q='+query
+                                                  ))
 
     async def set_voice(self, voice_request_message):
         """
