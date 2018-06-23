@@ -375,7 +375,9 @@ def main():
                 elif followup_message.content.startswith('%grant'):
                     await annas_voice.grant_current_voice_control_permissions(followup_message)
                 elif followup_message.content.startswith('%thanksenough'):
-                    await annas_voice.request_deactivation(followup_message)
+                    deactivated = await annas_voice.request_deactivation(followup_message)
+                    if deactivated:
+                        break
 
     anna.run(os.environ['DISCORD_APP_BOT_USER_TOKEN'])
 
