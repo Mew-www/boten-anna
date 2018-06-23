@@ -162,7 +162,7 @@ class VoiceInterface:
         def finished_speaking():
             self._is_speaking = False
 
-        iter_words = map(lambda w: w if not w.startswith('#') and len(w) > 1 else 'hashtag '+w[1:], phrase.split(' '))
+        iter_words = map(lambda w: w if not w.startswith('#') or len(w) == 1 else 'hashtag '+w[1:], phrase.split(' '))
         # Create PCM as-bytes
         synthesized_wav_bytes = self._espeak.synth_wav(' '.join(iter_words))
         # Upsample bytes to the frequency discord normally uses (48'000 Hz)
