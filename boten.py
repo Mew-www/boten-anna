@@ -62,25 +62,6 @@ async def handle_wheremii(anna, message):
                                                                      time_str))
 
 
-async def handle_wuv(anna, message):
-    author = message.author
-    # Check author name
-    if not author.name == os.environ['DISCORD_APP_ADMIN_NAME']:
-        return None
-    # Check author #<discriminator>
-    if not str(author.discriminator) == os.environ['DISCORD_APP_ADMIN_DISCRIM']:
-        return None
-    # Check author is on an existing voice channel
-    if author.voice.voice_channel is None:
-        return None
-    voice = await anna.join_voice_channel(author.voice.voice_channel)
-    voice_loop = voice.loop
-    player = voice.create_ffmpeg_player('../smile.mp3',
-                                        use_avconv=True,
-                                        after=lambda: asyncio.run_coroutine_threadsafe(voice.disconnect(), voice_loop))
-    player.start()
-
-
 class VoiceInterface:
 
     def __init__(self, anna, priorities=None):
@@ -275,56 +256,6 @@ class VoiceInterface:
         return False
 
 
-async def handle_talking(anna, message, state):
-    author = message.author
-    # Check author name
-    if (
-                not (author.name == os.environ['DISCORD_APP_ADMIN_NAME'] and str(author.discriminator) == os.environ['DISCORD_APP_ADMIN_DISCRIM'])
-            and not (author.name == os.environ['DISCORD_APP_SO_NAME'] and str(author.discriminator) == os.environ['DISCORD_APP_SO_DISCRIM'])
-    ):
-        return None
-    # Check author is on an existing voice channel
-    if author.voice.voice_channel is None:
-        return None
-    # Check if is already talking
-    if state['is_talking']:
-        return None
-    state['is_talking'] = True
-    voice = await anna.join_voice_channel(author.voice.voice_channel)
-    espeak = ESpeakNG(speed=135)
-
-    def disconnect_voice():
-        asyncio.run_coroutine_threadsafe(voice.disconnect(), voice.loop)
-        state['is_talking'] = False
-
-    while True:
-        followup_message = await anna.wait_for_message(author=message.author)
-        if followup_message.content.startswith('%thanksenough'):
-            disconnect_voice()
-            break
-        elif followup_message.content.startswith('%speed'):
-            new_speed_str = followup_message.content.split(' ')[1]
-            if len(new_speed_str) > 0:
-                new_speed = int(new_speed_str)
-                espeak.speed = new_speed
-        elif followup_message.content.startswith('%voice'):
-            new_voice_str = followup_message.content.split(' ')[1]
-            if len(new_voice_str) > 0:
-                espeak.voice = new_voice_str
-        elif followup_message.content.startswith('%say '):
-            words = followup_message.content.split(' ')[1:]
-            # Create the PCM, get its options via "wave" module, upsample it to 48'000 to accommodate Discord v-channels
-            synthesized_wav_bytes = espeak.synth_wav(' '.join(words))
-            with wave.open(BytesIO(synthesized_wav_bytes)) as wh:
-                resampled, cvstate = audioop.ratecv(synthesized_wav_bytes, wh.getsampwidth(), wh.getnchannels(),
-                                                    wh.getframerate(), 48000,
-                                                    None)
-                voice.encoder_options(sample_rate=48000, channels=wh.getnchannels())
-            # Speak
-            player = voice.create_stream_player(BytesIO(resampled))
-            player.start()
-
-
 def main():
     anna = discord.Client(max_messages=1000)
 
@@ -359,9 +290,6 @@ def main():
             await handle_changename(anna, message, aliases)
         elif message.content.startswith('%wheremii'):
             await handle_wheremii(anna, message)
-        elif message.content.startswith('%wuv'):
-            # Has restriction of mii-only
-            await handle_wuv(anna, message)
         elif message.content.startswith('%cometalk'):
             activated = await annas_voice.request_activation(message)
             while activated:
