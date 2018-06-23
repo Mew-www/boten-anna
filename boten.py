@@ -286,6 +286,7 @@ def main():
     aliases = get_aliases()
     annas_voice = VoiceInterface(anna)
 
+    # Background task, TODO implement speak_if_next_in_queue in same manner as await <discord-client>.wait_for_message
     async def speak_message_queue():
         await anna.wait_until_ready()
         while not anna.is_closed:
