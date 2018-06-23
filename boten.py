@@ -82,7 +82,7 @@ class VoiceInterface:
             'british': 'mb-en1',
             'german': 'mb-de3-en',
             'french': 'mb-fr4-en',
-            'swedish': 'mb-swe2-en',
+            'swedish': 'mb-sw2-en',
             'american': 'mb-us1'
         }
         # The following environment variable is intended to be JSON in format [["USERNAME", "DISCRIMINATOR"], [..], ...]
