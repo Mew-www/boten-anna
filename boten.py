@@ -13,6 +13,7 @@ from io import BytesIO
 import wave
 import audioop
 import json
+import re
 
 
 def get_aliases():
@@ -35,7 +36,7 @@ def get_aliases():
 
 def get_some_tweets():
     soup = BeautifulSoup(requests.get('https://twitter.com/cnnbrk').text, 'html.parser')
-    return [p.text for p in soup.findAll('p', class_='tweet-text')]
+    return [re.sub(r'http\S+', '', p.text) for p in soup.findAll('p', class_='tweet-text')]
 
 
 def pick_alias(names_countries):
