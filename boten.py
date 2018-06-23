@@ -72,7 +72,15 @@ class VoiceInterface:
     def __init__(self, anna, priorities=None):
         self._anna = anna
         self._voice_client = None
-        self._espeak = ESpeakNG(speed=135, voice='mb-de3-en')
+        self._espeak = ESpeakNG(speed=110, voice='mb-de3-en')
+        # Hardcoded voice options (since dependent on the system / espeak installation)
+        self._voice_mapping = {
+            'british': 'mb-en1',
+            'german': 'mb-de3-en',
+            'french': 'mb-fr4-en',
+            'swedish': 'mb-swe2-en',
+            'american': 'mb-us1'
+        }
         # The following environment variable is intended to be JSON in format [["USERNAME", "DISCRIMINATOR"], [..], ...]
         self._those_permitted_to_activate = json.loads(os.environ['DISCORD_APP_PRIVILEGED_USER_DISCRIM_PAIRS'])
         self._those_additionally_permitted_to_control_voice = []
@@ -241,6 +249,46 @@ class VoiceInterface:
     def is_voice_activated(self):
         return self._is_active
 
+    async def set_voice(self, voice_request_message):
+        """
+        TODO refactor this (essentially same mechanic as with grant_permission) to a wrapper/decorator
+        """
+        if not self._is_active:
+            await self._anna.send_message(voice_request_message.channel,
+                                          'Not currently active.')
+        elif self._voice_client is None:
+            await self._anna.send_message(voice_request_message.channel,
+                                          'In middle of instantiating voice connection, try again later.')
+        else:
+            requester = voice_request_message.author
+            activator_name, activator_discriminator = self._currently_activated_by.split('#')
+            if requester.name != activator_name or requester.discriminator != activator_discriminator:
+                await self._anna.send_message(voice_request_message.channel,
+                                              'Activated by {}, only that user can change voice attributes.'.format(
+                                                  self._currently_activated_by
+                                              ))
+            else:
+                options = voice_request_message.split(' ')[1:]
+                if len(options) == 0:
+                    await self._anna.send_message(voice_request_message, 'No options given. <voice> <speed>')
+                else:
+                    # At least 1 option
+                    voice_name = options[0]
+                    if voice_name not in list(self._voice_mapping.keys()):
+                        await self._anna.send_message(voice_request_message,
+                                                      'Invalid voice name. Available: {}'.format(
+                                                          ', '.join(list(self._voice_mapping.keys()))
+                                                      ))
+                        return None  # Don't go into other options
+                    else:
+                        self._espeak.voice = self._voice_mapping[voice_name]
+                if len(options) > 1:
+                    voice_speed = int(options[1])
+                    if 30 > voice_speed > 180:
+                        await self._anna.send_message(voice_request_message, 'Invalid speed. Has to be between 30..180')
+                    else:
+                        self._espeak.speed = voice_speed
+
     def add_to_queue(self, phrase, priority=None, lowest_priority=False, highest_priority=False):
         """
         :param phrase: A string to add in queued messages. If no priority is indicated it will be set to 0
@@ -360,12 +408,15 @@ def main():
                 def speak_or_grant_or_deactivate(msg):
                     return (msg.content.startswith('%say')
                             or msg.content.startswith('%grant')
+                            or msg.content.startswith('%voice')
                             or msg.content.startswith('%thanksenough'))
                 followup_message = await anna.wait_for_message(check=speak_or_grant_or_deactivate)
                 if followup_message.content.startswith('%say'):
                     await annas_voice.request_speak(followup_message)
                 elif followup_message.content.startswith('%grant'):
                     await annas_voice.grant_current_voice_control_permissions(followup_message)
+                elif followup_message.content.startswith('%voice'):
+                    await annas_voice.set_voice(followup_message)
                 elif followup_message.content.startswith('%thanksenough'):
                     deactivated = await annas_voice.request_deactivation(followup_message)
                     if deactivated:
