@@ -12,6 +12,7 @@ from espeakng import ESpeakNG
 from io import BytesIO
 import wave
 import audioop
+import json
 
 
 def get_aliases():
@@ -80,6 +81,200 @@ async def handle_wuv(anna, message):
     player.start()
 
 
+class VoiceInterface:
+
+    def __init__(self, anna, priorities=None):
+        self._anna = anna
+        self._voice_client = None
+        self._espeak = ESpeakNG(speed=135, voice='mb-de3-en')
+        # The following environment variable is intended to be JSON in format [["USERNAME", "DISCRIMINATOR"], [..], ...]
+        self._those_permitted_to_activate = json.loads(os.environ['DISCORD_APP_PRIVILEGED_USER_DISCRIM_PAIRS'])
+        self._those_additionally_permitted_to_control_voice = []
+        self._is_active = False
+        self._currently_active_in = None  # String, server name
+        self._currently_activated_by = None  # String, username#discriminator
+        self._is_speaking = False
+        # TODO <not-implemented> Init message queue and make shallow copy of priorities argument
+        if priorities is None:
+            priorities = []
+        self._priorities = list(priorities)  # ['LOWEST_PRIORITY_IDENTIFIER', ..., 'HIGHEST_PRIORITY_IDENTIFIER']
+        self._queued_messages = []
+
+    def _user_is_permitted_to_activate(self, user):
+        """
+        :param user: discord <User> (or superclass <Member>)
+        :return: boolean, indicating if permitted to activate
+        """
+        for user_discriminator_pair in self._those_permitted_to_activate:
+            if user.name == user_discriminator_pair[0] and str(user.discriminator) == user_discriminator_pair[1]:
+                return True
+        return False
+
+    def _user_is_permitted_to_control_voice(self, user):
+        """
+        :param user: discord <User> (or superclass <Member>)
+        :return: boolean, indicating if permitted to control voice
+        """
+        activator_name, activator_discriminator = self._currently_activated_by.split('#')
+        if user.name == activator_name and str(user.discriminator) == activator_discriminator:
+            return True
+        for user_discriminator_pair in self._those_additionally_permitted_to_control_voice:
+            if user.name == user_discriminator_pair[0] and str(user.discriminator) == user_discriminator_pair[1]:
+                return True
+        return False
+
+    async def _activate(self, activation_message):
+        """
+        Sets a boolean flag self._is_active in addition to the self._voice_client.
+        Voice client is instantiated async, so we need an additional (immediate) flag in case of subsequent calls.
+
+        :param activation_message: discord <Message>
+        :return: discord <VoiceClient>
+        """
+        requester = activation_message.author
+        self._is_active = True
+        self._currently_activated_by = '{}#{}'.format(requester.name, requester.discriminator)
+        self._currently_active_in = activation_message.channel.server
+        voice_client = await self._anna.join_voice_channel(requester.voice.voice_channel)
+        self._voice_client = voice_client
+        return voice_client
+
+    def _deactivate(self):
+        """
+        :param deactivation_message:
+        :return: only-assert-able concurrent.futures.Future
+        """
+        future = asyncio.run_coroutine_threadsafe(self._voice_client.disconnect(), self._voice_client.loop)
+        self._voice_client = None
+        self._those_additionally_permitted_to_control_voice = []
+        self._currently_activated_by = None
+        self._currently_activate_in = None
+        self._is_active = None
+        return future
+
+    def _speak(self, phrase):
+        """
+        :param phrase: String containing the words to speak.
+        :return: None
+        """
+        self._is_speaking = True
+
+        def finished_speaking():
+            self._is_speaking = False
+
+        iter_words = map(lambda w: w if not w.startswith('#') and len(w) > 1 else 'hashtag '+w[1:], phrase.split(' '))
+        # Create PCM as-bytes
+        synthesized_wav_bytes = self._espeak.synth_wav(' '.join(iter_words))
+        # Upsample bytes to the frequency discord normally uses (48'000 Hz)
+        with wave.open(BytesIO(synthesized_wav_bytes)) as wh:
+            resampled_bytes, convert_state = audioop.ratecv(synthesized_wav_bytes, wh.getsampwidth(), wh.getnchannels(),
+                                                            wh.getframerate(), 48000,
+                                                            None)
+            self._voice_client.encoder_options(sample_rate=48000, channels=wh.getnchannels())
+        # Speak
+        player = self._voice_client.create_stream_player(BytesIO(resampled_bytes), after=finished_speaking)
+        player.start()
+
+    async def request_activation(self, activation_message):
+        """
+        :param activation_message: discord <Message>
+        :return: boolean, indicating if successfully activated
+        """
+        if not self._user_is_permitted_to_activate(activation_message.author):
+            await self._anna.send_message(activation_message.channel,
+                                          '{}, you do not have the permission to activate voice capabilities'.format(
+                                              activation_message.author.mention
+                                          ))
+        elif activation_message.author.voice.voice_channel is None:
+            await self._anna.send_message(activation_message.channel,
+                                          '{}, you must be in a voice channel to request voice capabilities'.format(
+                                              activation_message.author.mention
+                                          ))
+        elif self._is_active:
+            await self._anna.send_message(activation_message.channel,
+                                          'I have already been activated by {} in server {}.'.format(
+                                              self._currently_activated_by,
+                                              self._currently_active_in
+                                          ))
+        else:
+            the_voice_client = await self._activate(activation_message)
+            return True
+        return False
+
+    async def grant_current_voice_control_permissions(self, grant_voice_control_message):
+        """
+        :param grant_voice_control_message: discord <Message>
+        :return: None
+        """
+        if not self._is_active:
+            await self._anna.send_message(grant_voice_control_message.channel,
+                                          'Not currently active.')
+        elif self._voice_client is None:
+            await self._anna.send_message(grant_voice_control_message.channel,
+                                          'In middle of instantiating voice connection, try again later.')
+        else:
+            requester = grant_voice_control_message.author
+            activator_name, activator_discriminator = self._currently_activated_by.split('#')
+            if requester.name != activator_name or requester.discriminator != activator_discriminator:
+                await self._anna.send_message(grant_voice_control_message.channel,
+                                              'Activated by {}, only that user can grant voice permissions.'.format(
+                                                  self._currently_activated_by
+                                              ))
+            else:
+                target_name, target_discriminator = grant_voice_control_message.split(' ')[1].split('#')
+                self._those_additionally_permitted_to_control_voice.append([target_name, target_discriminator])
+                await self._anna.send_message(grant_voice_control_message.channel,
+                                              '{}#{} now has voice control permission.'.format(
+                                                  target_name,
+                                                  target_discriminator
+                                              ))
+
+    async def request_speak(self, speak_request_message):
+        """
+        Implemented using else-s in case the logic changes from "returning Nones" to anything else (i.e. send_message)
+
+        :param speak_request_message: discord <Message>
+        :return: None
+        """
+        if not self._is_active:
+            return None
+        elif self._voice_client is None:
+            return None
+        elif self._is_speaking:
+            return None
+        elif not self._user_is_permitted_to_control_voice(speak_request_message.author):
+            await self._anna.send_message(speak_request_message.channel,
+                                          '{}, you do not have the permission to control voice'.format(
+                                              speak_request_message.author.mention
+                                          ))
+        else:
+            self._speak(' '.join(speak_request_message.split(' ')[1:]))
+
+    async def request_deactivation(self, deactivation_message):
+        """
+        :param deactivation_message: discord <Message>
+        :return: boolean, indicating if successfully deactivated
+        """
+        if not self._is_active:
+            await self._anna.send_message(deactivation_message.channel,
+                                          'Not currently active.')
+        elif self._voice_client is None:
+            await self._anna.send_message(deactivation_message.channel,
+                                          'In middle of instantiating voice connection, try again later.')
+        else:
+            requester = deactivation_message.author
+            activator_name, activator_discriminator = self._currently_activated_by.split('#')
+            if requester.name != activator_name or requester.discriminator != activator_discriminator:
+                await self._anna.send_message(deactivation_message.channel,
+                                              'Activated by {}, only that user is able to deactivate the voice.'.format(
+                                                  self._currently_activated_by
+                                              ))
+            else:
+                assert_able_future = self._deactivate()
+                return True
+        return False
+
+
 async def handle_talking(anna, message, state):
     author = message.author
     # Check author name
@@ -140,9 +335,7 @@ def main():
                  'Salut', 'Privét', 'Talofa', 'ćao', 'Nazdar', 'Zdravo', 'Hola', 'Jambo', 'Hej', 'Halo', 'Sàwàtdee kráp',
                  'Merhaba', 'Pryvít', 'Adaab arz hai', 'Chào']
     aliases = get_aliases()
-    state = {
-        'is_talking': False
-    }
+    annas_voice = VoiceInterface(anna)
 
     @anna.event
     async def on_ready():
@@ -170,8 +363,19 @@ def main():
             # Has restriction of mii-only
             await handle_wuv(anna, message)
         elif message.content.startswith('%cometalk'):
-            # Has restriction of mii-only
-            await handle_talking(anna, message, state)
+            activated = await annas_voice.request_activation(message)
+            while activated:
+                def speak_or_grant_or_deactivate(msg):
+                    return (msg.content.startswith('%say')
+                            or msg.content.startswith('%grant')
+                            or msg.content.startswith('%thanksenough'))
+                followup_message = await anna.wait_for_message(check=speak_or_grant_or_deactivate)
+                if followup_message.content.startswith('%say'):
+                    await annas_voice.request_speak(followup_message)
+                elif followup_message.content.startswith('%grant'):
+                    await annas_voice.grant_current_voice_control_permissions(followup_message)
+                elif followup_message.content.startswith('%thanksenough'):
+                    await annas_voice.request_deactivation(followup_message)
 
     anna.run(os.environ['DISCORD_APP_BOT_USER_TOKEN'])
 
