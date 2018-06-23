@@ -272,7 +272,7 @@ class VoiceInterface:
                 if len(keywords) == 0:
                     await self._anna.send_message(voice_request_message.channel, 'No keywords given.')
                 else:
-                    for tweet in get_some_tweets(keywords):
+                    for tweet in get_some_tweets('+'.join(keywords)):
                         self.add_to_queue(tweet)
 
     async def set_voice(self, voice_request_message):
