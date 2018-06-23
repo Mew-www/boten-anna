@@ -222,6 +222,9 @@ class VoiceInterface:
         elif self._voice_client is None:
             return None
         elif self._is_speaking:
+            phrase = ' '.join(speak_request_message.content.split(' ')[1:])
+            lowest_priority = 0
+            self._queued_messages = self._queued_messages.append([phrase, lowest_priority])
             return None
         elif not self._user_is_permitted_to_control_voice(speak_request_message.author):
             await self._anna.send_message(speak_request_message.channel,
@@ -230,6 +233,20 @@ class VoiceInterface:
                                           ))
         else:
             self._speak(' '.join(speak_request_message.content.split(' ')[1:]))
+
+    def speak_if_next_in_queue(self):
+        if len(self._queued_messages) == 0:
+            return None
+        elif not self._is_active:
+            return None
+        elif self._voice_client is None:
+            return None
+        elif self._is_speaking:
+            return None  # In future can print or speak the number of queued messages here
+        else:
+            self._queued_messages = sorted(self._queued_messages, key=lambda m: m[1])
+            next_in_queue = self._queued_messages.pop()
+            self._speak(next_in_queue[0])
 
     async def request_deactivation(self, deactivation_message):
         """
@@ -267,6 +284,12 @@ def main():
                  'Merhaba', 'Pryvít', 'Adaab arz hai', 'Chào']
     aliases = get_aliases()
     annas_voice = VoiceInterface(anna)
+
+    async def speak_message_queue():
+        await anna.wait_until_ready()
+        while not anna.is_closed:
+            annas_voice.speak_if_next_in_queue()
+            await asyncio.sleep(5)  # Check for queued messages every five seconds
 
     @anna.event
     async def on_ready():
@@ -307,6 +330,7 @@ def main():
                     if deactivated:
                         break
 
+    anna.loop.create_task(speak_message_queue())
     anna.run(os.environ['DISCORD_APP_BOT_USER_TOKEN'])
 
 
