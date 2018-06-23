@@ -224,7 +224,7 @@ class VoiceInterface:
         elif self._is_speaking:
             phrase = ' '.join(speak_request_message.content.split(' ')[1:])
             lowest_priority = 0
-            self._queued_messages = self._queued_messages.append([phrase, lowest_priority])
+            self._queued_messages.append([phrase, lowest_priority])
             return None
         elif not self._user_is_permitted_to_control_voice(speak_request_message.author):
             await self._anna.send_message(speak_request_message.channel,
