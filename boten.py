@@ -368,7 +368,7 @@ def main():
         await anna.wait_until_ready()
         while not anna.is_closed:
             annas_voice.speak_if_next_in_queue()
-            await asyncio.sleep(1)  # Check for queued messages every second
+            await asyncio.sleep(5)  # Check for queued messages every 5 seconds
 
     tweets = get_some_tweets()
 
