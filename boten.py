@@ -34,8 +34,8 @@ def get_aliases():
     return names_countries
 
 
-def get_some_tweets():
-    soup = BeautifulSoup(requests.get('https://twitter.com/cnnbrk').text, 'html.parser')
+def get_some_tweets(on_topic):
+    soup = BeautifulSoup(requests.get('https://twitter.com/'+on_topic).text, 'html.parser')
     tweets = [re.sub(r'pic\.twitter\.com\S+', '',
                      re.sub(r'http\S+', '', p.text))
               for p in soup.findAll('p', class_='tweet-text')]
@@ -139,7 +139,6 @@ class VoiceInterface:
 
     def _deactivate(self):
         """
-        :param deactivation_message:
         :return: only-assert-able concurrent.futures.Future
         """
         future = asyncio.run_coroutine_threadsafe(self._voice_client.disconnect(), self._voice_client.loop)
@@ -250,12 +249,35 @@ class VoiceInterface:
         else:
             self._speak(' '.join(speak_request_message.content.split(' ')[1:]))
 
-    def is_voice_activated(self):
-        return self._is_active
+    async def add_tweets(self, voice_request_message):
+        """
+        TODO refactor this (essentially same mechanic as with grant_permission/set_voice) to a wrapper/decorator
+        """
+        if not self._is_active:
+            await self._anna.send_message(voice_request_message.channel,
+                                          'Not currently active.')
+        elif self._voice_client is None:
+            await self._anna.send_message(voice_request_message.channel,
+                                          'In middle of instantiating voice connection, try again later.')
+        else:
+            requester = voice_request_message.author
+            activator_name, activator_discriminator = self._currently_activated_by.split('#')
+            if requester.name != activator_name or requester.discriminator != activator_discriminator:
+                await self._anna.send_message(voice_request_message.channel,
+                                              'Activated by {}, only that user can add messages to queue.'.format(
+                                                  self._currently_activated_by
+                                              ))
+            else:
+                keywords = voice_request_message.content.split(' ')[1:]
+                if len(keywords) == 0:
+                    await self._anna.send_message(voice_request_message.channel, 'No keywords given.')
+                else:
+                    for tweet in get_some_tweets(keywords):
+                        self.add_to_queue(tweet)
 
     async def set_voice(self, voice_request_message):
         """
-        TODO refactor this (essentially same mechanic as with grant_permission) to a wrapper/decorator
+        TODO refactor this (essentially same mechanic as with grant_permission/add_tweets) to a wrapper/decorator
         """
         if not self._is_active:
             await self._anna.send_message(voice_request_message.channel,
@@ -296,6 +318,8 @@ class VoiceInterface:
 
     def add_to_queue(self, phrase, priority=None, lowest_priority=False, highest_priority=False):
         """
+        Intended to be used by background processes directly (i.e. no user involved)
+
         :param phrase: A string to add in queued messages. If no priority is indicated it will be set to 0
         :param priority: A string to lookup from self._priorities, and use its index as the value to pass as priority.
         :param lowest_priority: A flag to set True if message should have lowest priority (overrides arg "priority")
@@ -374,17 +398,6 @@ def main():
             annas_voice.speak_if_next_in_queue()
             await asyncio.sleep(5)  # Check for queued messages every 5 seconds
 
-    tweets = get_some_tweets()
-
-    async def add_some_tweets():
-        await anna.wait_until_ready()
-        while not anna.is_closed:
-            if annas_voice.is_voice_activated():
-                for tweet in tweets:
-                    annas_voice.add_to_queue(tweet)
-                break
-            await asyncio.sleep(1)  # Check for voice readiness every second
-
     @anna.event
     async def on_ready():
         print('Online, connected ^__^')
@@ -422,12 +435,13 @@ def main():
                     await annas_voice.grant_current_voice_control_permissions(followup_message)
                 elif followup_message.content.startswith('%voice'):
                     await annas_voice.set_voice(followup_message)
+                elif followup_message.content.startswith('%twitter'):
+                    await annas_voice.add_tweets(followup_message)
                 elif followup_message.content.startswith('%thanksenough'):
                     deactivated = await annas_voice.request_deactivation(followup_message)
                     if deactivated:
                         break
 
-    anna.loop.create_task(add_some_tweets())
     anna.loop.create_task(speak_message_queue())
     anna.run(os.environ['DISCORD_APP_BOT_USER_TOKEN'])
 
