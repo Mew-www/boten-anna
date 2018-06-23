@@ -36,7 +36,9 @@ def get_aliases():
 
 def get_some_tweets():
     soup = BeautifulSoup(requests.get('https://twitter.com/cnnbrk').text, 'html.parser')
-    return [re.sub(r'http\S+', '', p.text) for p in soup.findAll('p', class_='tweet-text')]
+    return [re.sub(r'pic\.twitter\.com\S+', '',
+                   re.sub(r'http\S+', '', p.text))
+            for p in soup.findAll('p', class_='tweet-text')]
 
 
 def pick_alias(names_countries):
