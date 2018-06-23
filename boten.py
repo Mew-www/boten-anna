@@ -75,7 +75,7 @@ class VoiceInterface:
         self._currently_active_in = None  # String, server name
         self._currently_activated_by = None  # String, username#discriminator
         self._is_speaking = False
-        # TODO <not-implemented> Init message queue and make shallow copy of priorities argument
+        # Init message queue and make shallow copy of priorities argument
         if priorities is None:
             priorities = []
         self._priorities = list(priorities)  # ['LOWEST_PRIORITY_IDENTIFIER', ..., 'HIGHEST_PRIORITY_IDENTIFIER']
@@ -223,9 +223,7 @@ class VoiceInterface:
             return None
         elif self._is_speaking:
             phrase = ' '.join(speak_request_message.content.split(' ')[1:])
-            lowest_priority = 0
-            time_added = int(time.time())
-            self._queued_messages.append([phrase, lowest_priority, time_added])
+            self.add_to_queue(phrase, lowest_priority=True)
             return None
         elif not self._user_is_permitted_to_control_voice(speak_request_message.author):
             await self._anna.send_message(speak_request_message.channel,
@@ -235,7 +233,27 @@ class VoiceInterface:
         else:
             self._speak(' '.join(speak_request_message.content.split(' ')[1:]))
 
+    def add_to_queue(self, phrase, priority=None, lowest_priority=False, highest_priority=False):
+        """
+        :param phrase: A string to add in queued messages. If no priority is indicated it will be set to 0
+        :param priority: A string to lookup from self._priorities, and use its index as the value to pass as priority.
+        :param lowest_priority: A flag to set True if message should have lowest priority (overrides arg "priority")
+        :param highest_priority: A flag to set True if message should have highest priority (overrides all other args)
+        :return: None
+        """
+        interpreted_priority = 0
+        if highest_priority:
+            interpreted_priority = max(map(lambda m: m[1], self._queued_messages))
+        elif lowest_priority:
+            pass  # The default, presumably no "< 0" priorities (unless programmatically set, but those are exceptions)
+        elif priority is not None and priority in self._priorities:
+            interpreted_priority = self._priorities.index(priority)
+        self._queued_messages.append([phrase, interpreted_priority, int(time.time())])
+
     def speak_if_next_in_queue(self):
+        """
+        :return: The message content that was spoken, or None if no content to speak.
+        """
         if len(self._queued_messages) == 0:
             return None
         elif not self._is_active:
@@ -247,7 +265,9 @@ class VoiceInterface:
         else:
             self._queued_messages = sorted(self._queued_messages, key=lambda m: (m[1], -1*m[2]))
             next_in_queue = self._queued_messages.pop()
-            self._speak(next_in_queue[0])
+            content = next_in_queue[0]
+            self._speak(content)
+            return content
 
     async def request_deactivation(self, deactivation_message):
         """
@@ -291,7 +311,7 @@ def main():
         await anna.wait_until_ready()
         while not anna.is_closed:
             annas_voice.speak_if_next_in_queue()
-            await asyncio.sleep(5)  # Check for queued messages every five seconds
+            await asyncio.sleep(1)  # Check for queued messages every second
 
     @anna.event
     async def on_ready():
