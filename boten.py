@@ -33,6 +33,11 @@ def get_aliases():
     return names_countries
 
 
+def get_some_tweets():
+    soup = BeautifulSoup(requests.get('https://twitter.com/cnnbrk').text, 'html.parser')
+    return [p.text for p in soup.findAll('p', class_='tweet-text')]
+
+
 def pick_alias(names_countries):
     choice = random.choice(names_countries)
     return choice
@@ -79,7 +84,7 @@ class VoiceInterface:
         if priorities is None:
             priorities = []
         self._priorities = list(priorities)  # ['LOWEST_PRIORITY_IDENTIFIER', ..., 'HIGHEST_PRIORITY_IDENTIFIER']
-        self._queued_messages = []  # [[phrase, priority_integer, time_added_int]
+        self._queued_messages = []  # [[phrase, priority_integer, time_added_int], ...]
 
     def _user_is_permitted_to_activate(self, user):
         """
@@ -233,6 +238,9 @@ class VoiceInterface:
         else:
             self._speak(' '.join(speak_request_message.content.split(' ')[1:]))
 
+    def is_voice_activated(self):
+        return self._is_active
+
     def add_to_queue(self, phrase, priority=None, lowest_priority=False, highest_priority=False):
         """
         :param phrase: A string to add in queued messages. If no priority is indicated it will be set to 0
@@ -313,6 +321,17 @@ def main():
             annas_voice.speak_if_next_in_queue()
             await asyncio.sleep(1)  # Check for queued messages every second
 
+    tweets = get_some_tweets()
+
+    async def add_some_tweets():
+        await anna.wait_until_ready()
+        while not anna.is_closed:
+            if annas_voice.is_voice_activated():
+                for tweet in tweets:
+                    annas_voice.add_to_queue(tweet)
+                break
+            await asyncio.sleep(1)  # Check for voice readiness every second
+
     @anna.event
     async def on_ready():
         print('Online, connected ^__^')
@@ -352,6 +371,7 @@ def main():
                     if deactivated:
                         break
 
+    anna.loop.create_task(add_some_tweets())
     anna.loop.create_task(speak_message_queue())
     anna.run(os.environ['DISCORD_APP_BOT_USER_TOKEN'])
 
