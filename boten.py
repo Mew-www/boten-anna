@@ -427,6 +427,7 @@ def main():
                     return (msg.content.startswith('%say')
                             or msg.content.startswith('%grant')
                             or msg.content.startswith('%voice')
+                            or msg.content.startswith('%twitter')
                             or msg.content.startswith('%thanksenough'))
                 followup_message = await anna.wait_for_message(check=speak_or_grant_or_deactivate)
                 if followup_message.content.startswith('%say'):
