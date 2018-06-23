@@ -221,7 +221,7 @@ class VoiceInterface:
                                                   self._currently_activated_by
                                               ))
             else:
-                target_name, target_discriminator = grant_voice_control_message.split(' ')[1].split('#')
+                target_name, target_discriminator = grant_voice_control_message.content.split(' ')[1].split('#')
                 self._those_additionally_permitted_to_control_voice.append([target_name, target_discriminator])
                 await self._anna.send_message(grant_voice_control_message.channel,
                                               '{}#{} now has voice control permission.'.format(
@@ -248,7 +248,7 @@ class VoiceInterface:
                                               speak_request_message.author.mention
                                           ))
         else:
-            self._speak(' '.join(speak_request_message.split(' ')[1:]))
+            self._speak(' '.join(speak_request_message.content.split(' ')[1:]))
 
     async def request_deactivation(self, deactivation_message):
         """
