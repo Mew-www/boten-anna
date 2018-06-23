@@ -79,7 +79,7 @@ class VoiceInterface:
         if priorities is None:
             priorities = []
         self._priorities = list(priorities)  # ['LOWEST_PRIORITY_IDENTIFIER', ..., 'HIGHEST_PRIORITY_IDENTIFIER']
-        self._queued_messages = []
+        self._queued_messages = []  # [[phrase, priority_integer, time_added_int]
 
     def _user_is_permitted_to_activate(self, user):
         """
@@ -224,7 +224,8 @@ class VoiceInterface:
         elif self._is_speaking:
             phrase = ' '.join(speak_request_message.content.split(' ')[1:])
             lowest_priority = 0
-            self._queued_messages.append([phrase, lowest_priority])
+            time_added = int(time.time())
+            self._queued_messages.append([phrase, lowest_priority, time_added])
             return None
         elif not self._user_is_permitted_to_control_voice(speak_request_message.author):
             await self._anna.send_message(speak_request_message.channel,
@@ -244,7 +245,7 @@ class VoiceInterface:
         elif self._is_speaking:
             return None  # In future can print or speak the number of queued messages here
         else:
-            self._queued_messages = sorted(self._queued_messages, key=lambda m: m[1])
+            self._queued_messages = sorted(self._queued_messages, key=lambda m: (m[1], -1*m[2]))
             next_in_queue = self._queued_messages.pop()
             self._speak(next_in_queue[0])
 
