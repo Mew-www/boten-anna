@@ -87,7 +87,7 @@ class VoiceInterface:
     def __init__(self, anna, priorities=None):
         self._anna = anna
         self._voice_client = None
-        self._espeak = ESpeakNG(speed=110, voice='mb-de3-en')
+        self._espeak = ESpeakNG(speed=110, volume=50, voice='mb-de3-en')  # volume is espeak -a (amplitude) switch
         # Hardcoded voice options (since dependent on the system / espeak installation)
         self._voice_mapping = {
             'british': 'mb-en1',
