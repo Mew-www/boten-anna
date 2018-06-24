@@ -298,8 +298,9 @@ class VoiceInterface:
                                                       len(tweets),
                                                       'twitter.com/search?q='+query
                                                   ))
-                    for link in image_refs:
-                        await self._anna.send_message(voice_request_message.channel, '{}'.format(link))
+                    for link in image_refs[:limit]:
+                        pass
+                        # await self._anna.send_message(voice_request_message.channel, 'http://{}'.format(link))
 
     async def set_voice(self, voice_request_message):
         """
