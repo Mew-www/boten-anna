@@ -394,75 +394,86 @@ class VoiceInterface:
 
 
 def main():
-    display = Display(backend='xvfb', visible=False, size=(1920, 1080))
-    display.start()
-    driver = webdriver.Firefox()
+    display = None
+    driver = None
+    try:
+        print('Starting virtual display and selenium webdriver')
+        display = Display(backend='xvfb', visible=False, size=(1920, 1080))
+        display.start()
+        driver = webdriver.Firefox()
 
-    anna = discord.Client(max_messages=1000)
+        print('Starting discord client')
+        anna = discord.Client(max_messages=1000)
 
-    greetings = ['Goeie dag', 'Tungjatjeta', 'Ahlan bik', 'Nomoskar', 'Selam', 'Mingala ba', 'Nín hao', 'Zdravo', 'Nazdar',
-                 'Hallo', 'Rush B', 'Helo', 'Hei', 'Bonjour', 'Guten Tag', 'Geia!', 'Shalóm', 'Namasté', 'Szia', 'Hai',
-                 'Kiana', 'Dia is muire dhuit', 'Buongiorno', 'Kónnichi wa', 'Annyeonghaseyo', 'Sabai dii', 'Ave',
-                 'Es mīlu tevi', 'Selamat petang', 'sain baina uu', 'Namaste', 'Hallo.', 'Salâm', 'Witajcie', 'Olá',
-                 'Salut', 'Privét', 'Talofa', 'ćao', 'Nazdar', 'Zdravo', 'Hola', 'Jambo', 'Hej', 'Halo', 'Sàwàtdee kráp',
-                 'Merhaba', 'Pryvít', 'Adaab arz hai', 'Chào']
-    aliases = get_aliases()
-    annas_voice = VoiceInterface(anna)
+        greetings = ['Goeie dag', 'Tungjatjeta', 'Ahlan bik', 'Nomoskar', 'Selam', 'Mingala ba', 'Nín hao', 'Zdravo', 'Nazdar',
+                     'Hallo', 'Rush B', 'Helo', 'Hei', 'Bonjour', 'Guten Tag', 'Geia!', 'Shalóm', 'Namasté', 'Szia', 'Hai',
+                     'Kiana', 'Dia is muire dhuit', 'Buongiorno', 'Kónnichi wa', 'Annyeonghaseyo', 'Sabai dii', 'Ave',
+                     'Es mīlu tevi', 'Selamat petang', 'sain baina uu', 'Namaste', 'Hallo.', 'Salâm', 'Witajcie', 'Olá',
+                     'Salut', 'Privét', 'Talofa', 'ćao', 'Nazdar', 'Zdravo', 'Hola', 'Jambo', 'Hej', 'Halo', 'Sàwàtdee kráp',
+                     'Merhaba', 'Pryvít', 'Adaab arz hai', 'Chào']
+        aliases = get_aliases()
+        annas_voice = VoiceInterface(anna)
 
-    # Background task, TODO implement speak_if_next_in_queue in same manner as await <discord-client>.wait_for_message
-    async def speak_message_queue():
-        await anna.wait_until_ready()
-        while not anna.is_closed:
-            annas_voice.speak_if_next_in_queue()
-            await asyncio.sleep(5)  # Check for queued messages every 5 seconds
+        # Background task, TODO implement speak_if_next_in_queue in same manner as await client.wait_for_message
+        async def speak_message_queue():
+            await anna.wait_until_ready()
+            while not anna.is_closed:
+                annas_voice.speak_if_next_in_queue()
+                await asyncio.sleep(5)  # Check for queued messages every 5 seconds
 
-    @anna.event
-    async def on_ready():
-        print('Online, connected ^__^')
-        print('Having username {}#{} (UID: {})'.format(anna.user.name, anna.user.discriminator, anna.user.id))
-        print('On servers: {}'.format(', '.join(list(s.name for s in anna.servers))))
+        @anna.event
+        async def on_ready():
+            print('Online, connected ^__^')
+            print('Having username {}#{} (UID: {})'.format(anna.user.name, anna.user.discriminator, anna.user.id))
+            print('On servers: {}'.format(', '.join(list(s.name for s in anna.servers))))
 
-    @anna.event
-    async def on_server_join(server):
-        print('Joined server {}'.format(server.name))
+        @anna.event
+        async def on_server_join(server):
+            print('Joined server {}'.format(server.name))
 
-    @anna.event
-    async def on_server_remove(server):
-        print('Vacated from server {}'.format(server.name))
+        @anna.event
+        async def on_server_remove(server):
+            print('Vacated from server {}'.format(server.name))
 
-    @anna.event
-    async def on_message(message):
-        if message.content.startswith('%hello'):
-            await anna.send_message(message.channel, random.choice(greetings))
-        elif message.content.startswith('%changename'):
-            await handle_changename(anna, message, aliases)
-        elif message.content.startswith('%wheremii'):
-            await handle_wheremii(anna, message)
-        elif message.content.startswith('%cometalk'):
-            activated = await annas_voice.request_activation(message)
-            while activated:
-                def speak_or_grant_or_deactivate(msg):
-                    return (msg.content.startswith('%say')
-                            or msg.content.startswith('%grant')
-                            or msg.content.startswith('%voice')
-                            or msg.content.startswith('%twitter')
-                            or msg.content.startswith('%thanksenough'))
-                followup_message = await anna.wait_for_message(check=speak_or_grant_or_deactivate)
-                if followup_message.content.startswith('%say'):
-                    await annas_voice.request_speak(followup_message)
-                elif followup_message.content.startswith('%grant'):
-                    await annas_voice.grant_current_voice_control_permissions(followup_message)
-                elif followup_message.content.startswith('%voice'):
-                    await annas_voice.set_voice(followup_message)
-                elif followup_message.content.startswith('%twitter'):
-                    await annas_voice.add_tweets(followup_message, driver)
-                elif followup_message.content.startswith('%thanksenough'):
-                    deactivated = await annas_voice.request_deactivation(followup_message)
-                    if deactivated:
-                        break
+        @anna.event
+        async def on_message(message):
+            if message.content.startswith('%hello'):
+                await anna.send_message(message.channel, random.choice(greetings))
+            elif message.content.startswith('%changename'):
+                await handle_changename(anna, message, aliases)
+            elif message.content.startswith('%wheremii'):
+                await handle_wheremii(anna, message)
+            elif message.content.startswith('%cometalk'):
+                activated = await annas_voice.request_activation(message)
+                while activated:
+                    def speak_or_grant_or_deactivate(msg):
+                        return (msg.content.startswith('%say')
+                                or msg.content.startswith('%grant')
+                                or msg.content.startswith('%voice')
+                                or msg.content.startswith('%twitter')
+                                or msg.content.startswith('%thanksenough'))
+                    followup_message = await anna.wait_for_message(check=speak_or_grant_or_deactivate)
+                    if followup_message.content.startswith('%say'):
+                        await annas_voice.request_speak(followup_message)
+                    elif followup_message.content.startswith('%grant'):
+                        await annas_voice.grant_current_voice_control_permissions(followup_message)
+                    elif followup_message.content.startswith('%voice'):
+                        await annas_voice.set_voice(followup_message)
+                    elif followup_message.content.startswith('%twitter'):
+                        await annas_voice.add_tweets(followup_message, driver)
+                    elif followup_message.content.startswith('%thanksenough'):
+                        deactivated = await annas_voice.request_deactivation(followup_message)
+                        if deactivated:
+                            break
 
-    anna.loop.create_task(speak_message_queue())
-    anna.run(os.environ['DISCORD_APP_BOT_USER_TOKEN'])
+        anna.loop.create_task(speak_message_queue())
+        anna.run(os.environ['DISCORD_APP_BOT_USER_TOKEN'])
+
+    finally:
+        if driver is not None:
+            driver.quit()
+        if display is not None:
+            display.stop()
 
 
 if __name__ == '__main__':
