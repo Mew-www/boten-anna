@@ -279,8 +279,14 @@ class VoiceInterface:
                 if len(keywords) == 0:
                     await self._anna.send_message(voice_request_message.channel, 'No keywords given.')
                 else:
+                    limit = None
+                    if len(keywords) > 1 and keywords[-1].isdigit():
+                        limit = int(keywords[-1])
+                        keywords = keywords[:-1]
                     query = '+'.join(keywords)
                     tweets = await event_loop.run_in_executor(None, get_some_tweets, selenium_driver, query)
+                    if limit is not None and limit > 0:
+                        tweets = tweets[:limit]
                     for tweet in tweets:
                         self.add_to_queue(tweet)
                     await self._anna.send_message(voice_request_message.channel,
