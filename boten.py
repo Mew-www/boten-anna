@@ -256,7 +256,7 @@ class VoiceInterface:
         else:
             self._speak(' '.join(speak_request_message.content.split(' ')[1:]))
 
-    async def add_tweets(self, voice_request_message, selenium_driver):
+    async def add_tweets(self, voice_request_message, selenium_driver, event_loop):
         """
         TODO refactor this (essentially same mechanic as with grant_permission/set_voice) to a wrapper/decorator
         """
@@ -280,7 +280,7 @@ class VoiceInterface:
                     await self._anna.send_message(voice_request_message.channel, 'No keywords given.')
                 else:
                     query = '+'.join(keywords)
-                    tweets = get_some_tweets(selenium_driver, query)
+                    tweets = await event_loop.run_in_executor(None, get_some_tweets, selenium_driver, query)
                     for tweet in tweets:
                         self.add_to_queue(tweet)
                     await self._anna.send_message(voice_request_message.channel,
@@ -460,7 +460,7 @@ def main():
                     elif followup_message.content.startswith('%voice'):
                         await annas_voice.set_voice(followup_message)
                     elif followup_message.content.startswith('%twitter'):
-                        await annas_voice.add_tweets(followup_message, driver)
+                        await annas_voice.add_tweets(followup_message, driver, anna.loop)
                     elif followup_message.content.startswith('%thanksenough'):
                         deactivated = await annas_voice.request_deactivation(followup_message)
                         if deactivated:
