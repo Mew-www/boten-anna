@@ -46,7 +46,11 @@ def get_some_tweets(selenium_driver, on_topic):
     tweets = [re.sub(r'pic\.twitter\.com\S+', '',
                      re.sub(r'http\S+', '', p.text))
               for p in soup.findAll('p', class_='tweet-text')]
-    return list(filter(lambda t: len(t) > 0, tweets))
+    image_links = list(filter(lambda group: group is not None,
+                              map(lambda m_obj: m_obj.group(1) if m_obj else None,
+                                  [re.search(r'(pic\.twitter\.com\S+)', p.text)
+                                   for p in soup.findAll('p', class_='tweet-text')])))
+    return list(filter(lambda t: len(t) > 0, tweets)), image_links
 
 
 def pick_alias(names_countries):
@@ -284,7 +288,7 @@ class VoiceInterface:
                         limit = int(keywords[-1])
                         keywords = keywords[:-1]
                     query = '+'.join(keywords)
-                    tweets = await event_loop.run_in_executor(None, get_some_tweets, selenium_driver, query)
+                    tweets, image_refs = await event_loop.run_in_executor(None, get_some_tweets, selenium_driver, query)
                     if limit is not None and limit > 0:
                         tweets = tweets[:limit]
                     for tweet in tweets:
@@ -294,6 +298,8 @@ class VoiceInterface:
                                                       len(tweets),
                                                       'twitter.com/search?q='+query
                                                   ))
+                    for link in image_refs:
+                        await self._anna.send_message(voice_request_message.channel, '{}'.format(link))
 
     async def set_voice(self, voice_request_message):
         """
