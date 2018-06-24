@@ -5,15 +5,20 @@ import os
 
 from bs4 import BeautifulSoup, NavigableString
 import requests
+
 import random
 import time
 import asyncio
+
 from espeakng import ESpeakNG
 from io import BytesIO
 import wave
 import audioop
 import json
 import re
+
+from pyvirtualdisplay import Display
+from selenium import webdriver
 
 
 def get_aliases():
@@ -34,8 +39,10 @@ def get_aliases():
     return names_countries
 
 
-def get_some_tweets(on_topic):
-    soup = BeautifulSoup(requests.get('https://twitter.com/search?q='+on_topic).text, 'html.parser')
+def get_some_tweets(selenium_driver, on_topic):
+    selenium_driver.get('https://twitter.com/search?q=' + on_topic)
+    time.sleep(2)
+    soup = BeautifulSoup(selenium_driver.page_source, 'html.parser')
     tweets = [re.sub(r'pic\.twitter\.com\S+', '',
                      re.sub(r'http\S+', '', p.text))
               for p in soup.findAll('p', class_='tweet-text')]
@@ -249,7 +256,7 @@ class VoiceInterface:
         else:
             self._speak(' '.join(speak_request_message.content.split(' ')[1:]))
 
-    async def add_tweets(self, voice_request_message):
+    async def add_tweets(self, voice_request_message, selenium_driver):
         """
         TODO refactor this (essentially same mechanic as with grant_permission/set_voice) to a wrapper/decorator
         """
@@ -273,7 +280,7 @@ class VoiceInterface:
                     await self._anna.send_message(voice_request_message.channel, 'No keywords given.')
                 else:
                     query = '+'.join(keywords)
-                    tweets = get_some_tweets(query)
+                    tweets = get_some_tweets(selenium_driver, query)
                     for tweet in tweets:
                         self.add_to_queue(tweet)
                     await self._anna.send_message(voice_request_message.channel,
@@ -387,6 +394,10 @@ class VoiceInterface:
 
 
 def main():
+    display = Display(backend='xvfb', visible=False, size=(1920, 1080))
+    display.start()
+    driver = webdriver.Firefox()
+
     anna = discord.Client(max_messages=1000)
 
     greetings = ['Goeie dag', 'Tungjatjeta', 'Ahlan bik', 'Nomoskar', 'Selam', 'Mingala ba', 'Nín hao', 'Zdravo', 'Nazdar',
@@ -444,7 +455,7 @@ def main():
                 elif followup_message.content.startswith('%voice'):
                     await annas_voice.set_voice(followup_message)
                 elif followup_message.content.startswith('%twitter'):
-                    await annas_voice.add_tweets(followup_message)
+                    await annas_voice.add_tweets(followup_message, driver)
                 elif followup_message.content.startswith('%thanksenough'):
                     deactivated = await annas_voice.request_deactivation(followup_message)
                     if deactivated:
