@@ -87,7 +87,7 @@ class VoiceInterface:
     def __init__(self, anna, priorities=None):
         self._anna = anna
         self._voice_client = None
-        self._espeak = ESpeakNG(voice='mb-de3-en', speed=100, volume=50, word_gap=1, pitch=50)  # volume -> -a amplitude
+        self._espeak = ESpeakNG(voice='mb-en1', speed=135, volume=50, word_gap=1, pitch=50)  # volume -> -a amplitude
         # Hardcoded voice options (since dependent on the system / espeak installation)
         self._voice_configurations = {
             'alfred_like': {
@@ -104,7 +104,7 @@ class VoiceInterface:
                 'gap': 1,
                 'pitch': 70
             },
-            # ♥
+            # ♥♥
             'anna': {
                 'voice': 'mb-de3-en',
                 'speed': 100,
