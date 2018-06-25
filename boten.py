@@ -87,14 +87,52 @@ class VoiceInterface:
     def __init__(self, anna, priorities=None):
         self._anna = anna
         self._voice_client = None
-        self._espeak = ESpeakNG(speed=110, volume=50, voice='mb-de3-en')  # volume is espeak -a (amplitude) switch
+        self._espeak = ESpeakNG(voice='mb-de3-en', speed=100, volume=50, word_gap=1, pitch=50)  # volume -> -a amplitude
         # Hardcoded voice options (since dependent on the system / espeak installation)
-        self._voice_mapping = {
-            'british': 'mb-en1',
-            'german': 'mb-de3-en',
-            'french': 'mb-fr4-en',
-            'swedish': 'mb-sw2-en',
-            'american': 'mb-us1'
+        self._voice_configurations = {
+            'alfred_like': {
+                'voice': 'mb-en1',
+                'speed': 135,
+                'amplitude': 50,
+                'gap': 1,
+                'pitch': 50
+            },
+            'jarvis_like': {
+                'voice': 'mb-en1',
+                'speed': 135,
+                'amplitude': 50,
+                'gap': 1,
+                'pitch': 70
+            },
+            # ♥
+            'anna': {
+                'voice': 'mb-de3-en',
+                'speed': 100,
+                'amplitude': 50,
+                'gap': 1,
+                'pitch': 50
+            },
+            'pronounced_female': {
+                'voice': 'mb-fr4-en',
+                'speed': 135,
+                'amplitude': 50,
+                'gap': 1,
+                'pitch': 50
+            },
+            'soft_robotic_female': {
+                'voice': 'mb-sw2-en',
+                'speed': 135,
+                'amplitude': 50,
+                'gap': 1,
+                'pitch': 50
+            },
+            'robotic_female': {
+                'voice': 'mb-us1',
+                'speed': 100,
+                'amplitude': 50,
+                'gap': 1,
+                'pitch': 50
+            }
         }
         # The following environment variable is intended to be JSON in format [["USERNAME", "DISCRIMINATOR"], [..], ...]
         self._those_permitted_to_activate = json.loads(os.environ['DISCORD_APP_PRIVILEGED_USER_DISCRIM_PAIRS'])
@@ -323,25 +361,24 @@ class VoiceInterface:
             else:
                 options = voice_request_message.content.split(' ')[1:]
                 if len(options) == 0:
-                    await self._anna.send_message(voice_request_message.channel, 'No options given. <voice> <speed>')
+                    await self._anna.send_message(voice_request_message.channel,
+                                                  'No options given. <voice name> Available: {}'.format(
+                                                      ', '.join(list(self._voice_configurations.keys()))
+                                                  ))
                 else:
-                    # At least 1 option
                     voice_name = options[0]
-                    if voice_name not in list(self._voice_mapping.keys()):
+                    if voice_name not in list(self._voice_configurations.keys()):
                         await self._anna.send_message(voice_request_message.channel,
                                                       'Invalid voice name. Available: {}'.format(
-                                                          ', '.join(list(self._voice_mapping.keys()))
+                                                          ', '.join(list(self._voice_configurations.keys()))
                                                       ))
-                        return None  # Don't go into other options
                     else:
-                        self._espeak.voice = self._voice_mapping[voice_name]
-                if len(options) > 1:
-                    voice_speed = int(options[1])
-                    if 30 > voice_speed > 180:
-                        await self._anna.send_message(voice_request_message.channel,
-                                                      'Invalid speed. Has to be between 30..180')
-                    else:
-                        self._espeak.speed = voice_speed
+                        voice_configuration = self._voice_configurations[voice_name]
+                        self._espeak.voice = voice_configuration['voice']
+                        self._espeak.speed = voice_configuration['speed']
+                        self._espeak.volume = voice_configuration['amplitude']
+                        self._espeak.word_gap = voice_configuration['gap']
+                        self._espeak.pitch = voice_configuration['pitch']
 
     def add_to_queue(self, phrase, priority=None, lowest_priority=False, highest_priority=False):
         """
