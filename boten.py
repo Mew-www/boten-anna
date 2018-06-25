@@ -450,7 +450,9 @@ def main():
         print('Starting virtual display and selenium webdriver')
         display = Display(backend='xvfb', visible=False, size=(1920, 1080))
         display.start()
-        driver = webdriver.Firefox()
+        ff_profile = webdriver.FirefoxProfile()
+        ff_profile.set_preference("general.useragent.override", os.environ['WEBDRIVER_USERAGENT'])
+        driver = webdriver.Firefox(ff_profile)
 
         print('Starting discord client')
         anna = discord.Client(max_messages=1000)
