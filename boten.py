@@ -20,7 +20,6 @@ import re
 from pyvirtualdisplay import Display
 from selenium import webdriver
 
-from discord import Recorder
 
 def get_aliases():
     soup = BeautifulSoup(requests.get('https://en.wikipedia.org/wiki/Anna_(given_name)').text, 'html.parser')
@@ -184,7 +183,6 @@ class VoiceInterface:
         self._currently_activated_by = '{}#{}'.format(requester.name, requester.discriminator)
         self._currently_active_in = activation_message.channel.server
         voice_client = await self._anna.join_voice_channel(requester.voice.voice_channel)
-        voice_client.enable_voice_events()
         self._voice_client = voice_client
         return voice_client
 
@@ -448,8 +446,6 @@ class VoiceInterface:
 def main():
     display = None
     driver = None
-    recorder = Recorder()
-    recorder.start()
     try:
         print('Starting virtual display and selenium webdriver')
         display = Display(backend='xvfb', visible=False, size=(1920, 1080))
@@ -492,10 +488,6 @@ def main():
             print('Vacated from server {}'.format(server.name))
 
         @anna.event
-        async def on_speak(self, *args):
-            recorder.receive_packet(*args)
-
-        @anna.event
         async def on_message(message):
             if message.content.startswith('%hello'):
                 await anna.send_message(message.channel, random.choice(greetings))
@@ -521,19 +513,6 @@ def main():
                         await annas_voice.set_voice(followup_message)
                     elif followup_message.content.startswith('%twitter'):
                         await annas_voice.add_tweets(followup_message, driver, anna.loop)
-                    elif followup_message.content.startswith('%savedata'):
-                        chunks = recorder.get_replay(300)
-                        # Test the provided example code
-                        with open('test.wav', 'w') as fh:
-                            multiplier = 0.333
-                            mix = None
-                            for i, (pcm, sequence, timestamp, maxlevel, silence) in enumerate(chunks):
-                                multiplied_pcm = audioop.mul(pcm, 2, multiplier)
-                                if i == 0:
-                                    mix = multiplied_pcm
-                                else:
-                                    mix = audioop.add(mix, multiplied_pcm, 2)
-                            fh.write(mix)
                     elif followup_message.content.startswith('%thanksenough'):
                         deactivated = await annas_voice.request_deactivation(followup_message)
                         if deactivated:
